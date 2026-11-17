@@ -1,0 +1,20 @@
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 开发期临时脚本与离线预览（只是本机调试用，不进版本库）
+_preview/
+_probe/
+_probe/home/
+
+# 本机工具产物
+.playwright-cli/
+.cache/
+*.log
+*.tmp
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

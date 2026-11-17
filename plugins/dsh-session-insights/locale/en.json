@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "The Error Museum",
+    "description": "Turns the last 30 days (7 / 30 / 90 selectable) of confirmed failures into exhibits: each hall shows how the model handled the failure (restoration / retries / handed back / stalled), every exhibit keeps the real trajectory around the failure and the verbatim error, and the panel detects whether the model named its own mistake before continuing (regret). Above the halls: collection stats, a species wall, and curator's notes written only from this window's exhibits. The Sessions tab keeps the original risk board and the configured-model audit. Open it from the left rail's panel list. Session logs are read locally; a model request happens only when you press the audit button."
+  }
+}
