@@ -13,7 +13,9 @@ window.__ModuleLoader__.load({
     const NS = 'dsh-session-insights'
     const API = '/dsh-session-insights/api'
     const RANGES = [7, 30, 90]
-    const BOARD_LIMIT = 40
+    // How many rows each shape shows before offering "show more": cards cost
+    // height, ledger lines cost almost nothing, so the calm tier can show plenty.
+    const TIER_LIMITS = { pain: 12, redundant: 24, ok: 60 }
 
     // ---------------------------------------------------------------- strings
     const DICT = {
@@ -54,7 +56,15 @@ window.__ModuleLoader__.load({
         'flow.sequence': '重复序列',
         'flow.repeat-prompt': '重复需求',
         'board.title': '会话看板',
-        'board.hint': '全部会话按风险分列。点开卡片看证据，再用已配置模型深挖。',
+        'board.hint': '按影响的重量分级陈列：出问题的逐张展开，没问题的排成名录。点开卡片看证据，再用已配置模型深挖。',
+        'board.band.title': '会话分布',
+        'board.band.body': '{n} 个会话',
+        'board.band.axis': '需要处理 ← 会话状态 → 无事发生',
+        'board.count': '个会话',
+        'board.noCalls': '无调用',
+        'board.pain.hint': '有失败、有拒绝，或回合异常。',
+        'board.redundant.hint': '没有失败，但有重复调用。',
+        'board.ok.hint': '没有失败，也没有冗余。',
         'board.model': '分析模型',
         'board.modelMissing': '未配置默认模型',
         'board.pain': '高痛点',
@@ -67,6 +77,15 @@ window.__ModuleLoader__.load({
         'card.fails': '{n} 失败',
         'card.redundant': '{n} 冗余',
         'detail.metrics': '关键指标',
+        'detail.rail': '现场数据',
+        'detail.rail.hint': '这一会话的计数',
+        'detail.kinds': '种',
+        'detail.trail': '修复过程',
+        'detail.trail.hint': '这一会话里每次失败，按时间。',
+        'detail.trail.count': '{n} 次失败',
+        'detail.trail.empty': '这个会话里没有可展出的失败。',
+        'detail.signatures': '失败签名',
+        'detail.step.fixed': '{n} 步回到正轨',
         'detail.pains': '痛点证据',
         'detail.duplicates': '重复调用',
         'detail.tools': '工具分布',
@@ -133,9 +152,13 @@ window.__ModuleLoader__.load({
         'museum.filter.reflect': '只看自省',
         'museum.filter.reset': '清除筛选',
         'museum.filter.result': '筛选出 {n} 件',
+        'museum.filter.empty': '没有符合这个筛选的藏品。',
         'museum.board.title': '展厅',
         'museum.board.shown': '陈列 {shown} / 馆藏 {total} 件',
-        'museum.board.hint': '按失败之后的处置分室陈列；点开一件看前因、故障与后果。',
+        'museum.board.hint': '按失败之后的处置分室陈列；带子的宽度就是藏品数量，点一段走到那一室。',
+        'museum.band.title': '馆藏分布',
+        'museum.band.body': '馆藏 {total} 件 · 本墙陈列 {shown} 件',
+        'museum.band.axis': '自愈 ← 失败之后的去向 → 未处置',
         'museum.notes.title': '策展人按',
         'museum.notes.hint': '只根据本期展品的统计写成，不做语义猜测。',
         'museum.hall.restored': '复原室',
@@ -147,6 +170,9 @@ window.__ModuleLoader__.load({
         'museum.hall.stalled': '搁置室',
         'museum.hall.stalled.hint': '没有后续动作，或回合异常结束。',
         'museum.hall.empty': '这一室暂时空着。',
+        'museum.hall.hung': '件陈列',
+        'museum.hall.stored': '馆藏 {n} 件',
+        'museum.hall.rare': '本室仅此数件，全部上墙',
         'museum.no': 'No. {no}',
         'museum.card.retried': '原样重试 ×{n}',
         'museum.card.reflected': '自省',
@@ -242,7 +268,15 @@ window.__ModuleLoader__.load({
         'flow.sequence': 'Repeated sequence',
         'flow.repeat-prompt': 'Repeated request',
         'board.title': 'Session board',
-        'board.hint': 'Every Session, grouped by risk. Open a card for the evidence, then audit it with the configured model.',
+        'board.hint': 'Shelved by weight: what went wrong gets a full card, what did not becomes a roster line. Open a card for the evidence, then audit it with the configured model.',
+        'board.band.title': 'Sessions by state',
+        'board.band.body': '{n} Sessions',
+        'board.band.axis': 'needs attention ← Session state → nothing happened',
+        'board.count': 'Sessions',
+        'board.noCalls': 'no calls',
+        'board.pain.hint': 'Failures, refusals, or an abnormal turn.',
+        'board.redundant.hint': 'No failures, but repeated calls.',
+        'board.ok.hint': 'No failures and no repeats.',
         'board.model': 'Audit model',
         'board.modelMissing': 'No default model configured',
         'board.pain': 'Pain-heavy',
@@ -255,6 +289,15 @@ window.__ModuleLoader__.load({
         'card.fails': '{n} failed',
         'card.redundant': '{n} redundant',
         'detail.metrics': 'Metrics',
+        'detail.rail': 'On the record',
+        'detail.rail.hint': 'Counts for this Session',
+        'detail.kinds': 'kinds',
+        'detail.trail': 'Conservation record',
+        'detail.trail.hint': 'Each failure in this Session, in order.',
+        'detail.trail.count': '{n} failures',
+        'detail.trail.empty': 'No exhibit-worthy failure in this Session.',
+        'detail.signatures': 'Failure signatures',
+        'detail.step.fixed': 'back on track in {n}',
         'detail.pains': 'Pain evidence',
         'detail.duplicates': 'Duplicate calls',
         'detail.tools': 'Tool usage',
@@ -321,9 +364,13 @@ window.__ModuleLoader__.load({
         'museum.filter.reflect': 'Self-corrected only',
         'museum.filter.reset': 'Clear filter',
         'museum.filter.result': '{n} exhibits match',
+        'museum.filter.empty': 'No exhibit matches this filter.',
         'museum.board.title': 'Halls',
         'museum.board.shown': '{shown} of {total} exhibits hung',
-        'museum.board.hint': 'Hung by how the failure was handled; open a piece for its before, fault and after.',
+        'museum.board.hint': 'Hung by how the failure was handled; the band’s width is the collection, and a segment walks you to that room.',
+        'museum.band.title': 'Collection by outcome',
+        'museum.band.body': '{total} stored · {shown} on this wall',
+        'museum.band.axis': 'self-healed ← where the failure went → unattended',
         'museum.notes.title': 'Curator’s notes',
         'museum.notes.hint': 'Written from this window’s exhibits only, with no semantic guessing.',
         'museum.hall.restored': 'Restoration',
@@ -335,6 +382,9 @@ window.__ModuleLoader__.load({
         'museum.hall.stalled': 'Stalled',
         'museum.hall.stalled.hint': 'No follow-up, or the turn ended abnormally.',
         'museum.hall.empty': 'This hall is empty.',
+        'museum.hall.hung': 'hung',
+        'museum.hall.stored': '{n} stored',
+        'museum.hall.rare': 'Only a few pieces; all of them are hung',
         'museum.no': 'No. {no}',
         'museum.card.retried': 'Verbatim retry ×{n}',
         'museum.card.reflected': 'Self-corrected',
@@ -598,7 +648,7 @@ window.__ModuleLoader__.load({
 .si-row-name{font-size:12.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .si-row-meta{font-size:11px;color:var(--dsw-alias-label-secondary);white-space:nowrap;font-variant-numeric:tabular-nums}
 .si-track{height:4px;border-radius:2px;background:var(--dsw-alias-border-l1);overflow:hidden}
-.si-fill{display:block;height:100%;border-radius:2px;background:var(--dsw-alias-brand-primary)}
+.si-fill{display:block;height:100%;border-radius:2px;background:var(--si-gold,var(--dsw-alias-brand-primary))}
 .si-fill.bad{background:var(--dsw-alias-state-error-primary)}
 .si-fill.warn{background:var(--dsw-alias-state-warn-primary)}
 .si-tag{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--dsw-alias-border-l1);border-radius:999px;padding:0 7px;font-size:10.5px;line-height:17px;color:var(--dsw-alias-label-secondary);white-space:nowrap}
@@ -606,11 +656,24 @@ window.__ModuleLoader__.load({
 .si-tag.warn{color:var(--dsw-alias-state-warn-primary);border-color:var(--dsw-alias-state-warn-primary)}
 .si-tag.ok{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}
 .si-code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.si-board{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:12px;align-items:start}
-.si-col{border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1);padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
-.si-col-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 4px 7px;border-bottom:1px solid var(--si-line,var(--dsw-alias-border-l1))}
-.si-col-name{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;font-family:var(--si-serif,inherit);letter-spacing:.04em}
-.si-col-roman{font-family:var(--si-serif,inherit);font-size:9.5px;letter-spacing:.2em;color:var(--si-gold,var(--dsw-alias-state-warn-primary))}
+.si-tier{display:grid;grid-template-columns:154px minmax(0,1fr);gap:16px;border-top:1px solid var(--si-line);padding:12px 0 6px}
+.si-tier:first-of-type{border-top:0}
+.si-tier-label{display:flex;flex-direction:column;gap:3px;position:sticky;top:6px;align-self:start;padding:2px 6px 0 0}
+.si-tier-name{display:flex;align-items:baseline;gap:7px;font-family:var(--si-serif);font-size:13.5px;font-weight:600;letter-spacing:.05em}
+.si-tier-roman{font-size:9.5px;letter-spacing:.2em;color:var(--si-gold);font-family:var(--si-serif)}
+.si-tier-count{font-family:var(--si-serif);font-size:20px;font-variant-numeric:tabular-nums;line-height:1.1}
+.si-tier-count span{font-size:10.5px;color:var(--si-muted);font-family:inherit;margin-left:4px}
+.si-tier-hint{margin:1px 0 0;font-size:10.5px;color:var(--si-muted);line-height:1.45}
+.si-tier-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(226px,1fr));gap:9px;align-content:start}
+.si-tier-lines{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px;align-content:start}
+.si-ledger{columns:3;column-gap:20px}
+.si-line{display:flex;align-items:baseline;gap:8px;width:100%;min-width:0;text-align:left;border:0;border-bottom:1px dotted var(--si-line);background:none;padding:5px 2px;font:inherit;color:inherit;cursor:pointer;break-inside:avoid}
+.si-line:hover{background:var(--dsw-alias-bg-layer-1)}
+.si-line-title{flex:1;min-width:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.si-line-meta{font-size:10.5px;color:var(--si-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.si-line-meta.bad{color:var(--dsw-alias-state-error-primary)}
+.si-line-meta.gold{color:var(--si-gold)}
+.si-line.dim .si-line-title,.si-line.dim .si-line-meta{color:var(--si-muted);opacity:.75}
 .si-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
 .si-dot.pain{background:var(--dsw-alias-state-error-primary)}
 .si-dot.redundant{background:var(--dsw-alias-state-warn-primary)}
@@ -635,11 +698,6 @@ window.__ModuleLoader__.load({
 .si-detail-hero-meta{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
 .si-detail-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .si-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;align-items:start}
-.si-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px}
-.si-stat{display:flex;flex-direction:column;gap:1px;border-top:1px solid var(--si-line,var(--dsw-alias-border-l1));padding-top:5px;min-width:0}
-.si-stat-label{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--si-muted,var(--dsw-alias-label-secondary));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.si-stat-value{font-family:var(--si-serif,inherit);font-size:17px;font-variant-numeric:tabular-nums;line-height:1.25}
-.si-stat.bad .si-stat-value{color:var(--dsw-alias-state-error-primary)}
 .si-list{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
 .si-item{display:flex;flex-direction:column;gap:4px;border-left:2px solid var(--dsw-alias-border-l2);padding-left:9px}
 .si-item.pain{border-left-color:var(--dsw-alias-state-error-primary)}
@@ -672,6 +730,13 @@ window.__ModuleLoader__.load({
   --si-line:color-mix(in oklab,var(--dsw-alias-label-primary) 15%,transparent);
   --si-line-strong:color-mix(in oklab,var(--dsw-alias-label-primary) 28%,transparent);
   --si-muted:color-mix(in oklab,var(--dsw-alias-label-primary) 56%,transparent);
+  --si-hall-restored:color-mix(in oklab,var(--dsw-alias-state-success-primary) 68%,var(--dsw-alias-label-primary) 32%);
+  --si-hall-retried:var(--si-gold);
+  --si-hall-handback:color-mix(in oklab,var(--dsw-alias-label-primary) 46%,transparent);
+  --si-hall-stalled:color-mix(in oklab,var(--dsw-alias-state-error-primary) 84%,var(--dsw-alias-label-primary) 16%);
+  --si-status-pain:var(--si-hall-stalled);
+  --si-status-redundant:var(--si-gold);
+  --si-status-ok:color-mix(in oklab,var(--dsw-alias-state-success-primary) 80%,var(--dsw-alias-label-primary) 20%);
 }
 .si-museum-head{position:relative;padding:20px 26px 17px;border:1px solid var(--si-line);border-radius:3px;background:var(--si-paper);box-shadow:inset 0 0 0 5px color-mix(in oklab,var(--dsw-alias-bg-base) 62%,transparent),inset 0 0 0 6px var(--si-gold-soft)}
 .si-museum-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
@@ -704,14 +769,38 @@ window.__ModuleLoader__.load({
 .si-species-count{font-size:10.5px;color:var(--si-muted);font-variant-numeric:tabular-nums}
 .si-species-bar{position:relative;width:36px;height:2px;background:var(--si-line);border-radius:1px;overflow:hidden}
 .si-species-bar i{position:absolute;inset:0 auto 0 0;background:var(--si-gold);display:block}
-.si-halls{display:grid;grid-template-columns:repeat(auto-fit,minmax(256px,1fr));gap:12px;align-items:start}
-.si-hall{border:1px solid var(--si-line);border-radius:2px;background:color-mix(in oklab,var(--si-paper) 62%,var(--dsw-alias-bg-base) 38%);padding:9px 10px 10px;display:flex;flex-direction:column;gap:8px;min-width:0}
-.si-hall-head{display:flex;flex-direction:column;gap:3px;padding:2px 2px 7px;border-bottom:1px solid var(--si-line)}
-.si-hall-name{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
-.si-hall-roman{font-family:var(--si-serif);font-size:10px;letter-spacing:.22em;color:var(--si-gold);margin-right:6px}
-.si-hall-title{font-family:var(--si-serif);font-size:14px;font-weight:600;letter-spacing:.07em}
-.si-hall-count{font-size:11px;color:var(--si-muted);font-variant-numeric:tabular-nums}
-.si-hall-hint{margin:0;font-size:10.5px;color:var(--si-muted);line-height:1.5}
+.si-route{display:flex;flex-direction:column;gap:7px}
+.si-band{display:flex;height:38px;border:1px solid var(--si-line);background:var(--si-paper);overflow:hidden}
+.si-band-seg{display:flex;align-items:center;justify-content:center;gap:7px;min-width:2px;border:0;padding:0;background:var(--tone);color:var(--dsw-alias-bg-base);font:inherit;font-family:var(--si-serif);font-size:10.5px;letter-spacing:.18em;cursor:pointer;box-shadow:inset -1px 0 0 color-mix(in oklab,var(--dsw-alias-bg-base) 55%,transparent)}
+.si-band-seg i{font-style:normal;font-family:var(--si-mono);font-size:9px;letter-spacing:.04em}
+.si-band-seg:hover{filter:brightness(1.07)}
+.si-band-seg:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
+.si-band-cap{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:10.5px;color:var(--si-muted)}
+.si-band-cap b{font-family:var(--si-serif);font-size:11px;letter-spacing:.08em;color:var(--dsw-alias-label-primary);font-weight:600}
+.si-axis{display:flex;align-items:center;gap:10px;font-family:var(--si-serif);font-size:9.5px;letter-spacing:.14em;color:var(--si-muted)}
+.si-axis::before,.si-axis::after{content:"";height:1px;flex:1;background:linear-gradient(90deg,transparent,var(--si-line))}
+.si-axis::after{background:linear-gradient(90deg,var(--si-line),transparent)}
+.si-legend{display:flex;flex-wrap:wrap;gap:5px 22px}
+.si-legend-item{display:flex;align-items:baseline;gap:6px;border:0;background:transparent;padding:2px 0;font:inherit;color:inherit;cursor:pointer;min-width:0}
+.si-legend-item::before{content:"";width:7px;height:7px;flex:0 0 auto;background:var(--tone);align-self:center}
+.si-legend-item:hover .si-legend-name{color:var(--gold)}
+.si-legend-name{display:flex;align-items:baseline;gap:5px;font-family:var(--si-serif);font-size:12px;font-weight:600;letter-spacing:.04em;white-space:nowrap}
+.si-legend-name em{font-style:normal;font-size:9px;letter-spacing:.18em;color:var(--si-gold)}
+.si-legend-value{font-family:var(--si-serif);font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.si-legend-value span{font-size:10px;color:var(--si-muted);font-family:inherit;margin-left:4px}
+.si-wall{display:flex;flex-direction:column}
+.si-section{display:grid;grid-template-columns:154px minmax(0,1fr);gap:16px;border-top:1px solid var(--si-line);padding:13px 0 7px;scroll-margin-top:8px}
+.si-section.rare{background:color-mix(in oklab,var(--si-paper) 46%,transparent)}
+.si-section-label{display:flex;flex-direction:column;gap:3px;position:sticky;top:6px;align-self:start;padding:2px 6px 0 0}
+.si-section-roman{font-family:var(--si-serif);font-size:9.5px;letter-spacing:.22em;color:var(--si-gold)}
+.si-section-name{font-family:var(--si-serif);font-size:14.5px;font-weight:600;letter-spacing:.07em;line-height:1.3}
+.si-section-count{font-family:var(--si-serif);font-size:21px;font-variant-numeric:tabular-nums;line-height:1.1}
+.si-section-count span{font-size:10.5px;color:var(--si-muted);font-family:inherit;margin-left:4px}
+.si-section-hint{margin:2px 0 0;font-size:10.5px;color:var(--si-muted);line-height:1.5}
+.si-section-flag{margin-top:5px;font-family:var(--si-serif);font-size:10px;letter-spacing:.03em;color:var(--si-gold);border-left:2px solid var(--si-gold);padding-left:6px;line-height:1.4}
+.si-wall-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(206px,1fr));gap:9px;align-content:start}
+.si-wall-more{grid-column:1/-1;border:1px dashed var(--si-line-strong);background:transparent;color:var(--si-muted);font:inherit;font-family:var(--si-serif);font-size:11px;letter-spacing:.04em;padding:6px;cursor:pointer}
+.si-wall-more:hover{color:var(--dsw-alias-label-primary);border-color:var(--si-gold)}
 .si-exhibit{position:relative;display:flex;flex-direction:column;gap:7px;text-align:left;width:100%;border:1px solid var(--si-line);border-radius:2px;background:var(--dsw-alias-bg-base);color:inherit;font:inherit;padding:12px 12px 10px;cursor:pointer;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
 .si-exhibit::after{content:"";position:absolute;inset:4px;border:1px solid var(--si-gold-soft);pointer-events:none;border-radius:1px}
 .si-exhibit:hover{border-color:var(--si-line-strong);transform:translateY(-2px);box-shadow:0 7px 18px color-mix(in oklab,var(--dsw-alias-label-primary) 8%,transparent)}
@@ -728,8 +817,9 @@ window.__ModuleLoader__.load({
 .si-badge.gold{color:var(--si-gold);border-color:color-mix(in oklab,var(--si-gold) 55%,transparent)}
 .si-badge.ok{color:var(--dsw-alias-state-success-primary);border-color:color-mix(in oklab,var(--dsw-alias-state-success-primary) 45%,transparent)}
 .si-badge.bad{color:var(--dsw-alias-state-error-primary);border-color:color-mix(in oklab,var(--dsw-alias-state-error-primary) 45%,transparent)}
-.si-exhibit-foot{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:10px;color:var(--si-muted);border-top:1px dotted var(--si-line);padding-top:6px}
+.si-exhibit-foot{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:10px;color:var(--si-muted);border-top:1px dotted var(--si-line);padding-top:6px;margin-top:auto}
 .si-exhibit-session{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.si-exhibit-open{white-space:nowrap;flex:0 0 auto}
 .si-placard{position:relative;border:1px solid var(--si-line);border-radius:3px;background:var(--si-paper);padding:19px 22px 18px;box-shadow:inset 0 0 0 5px color-mix(in oklab,var(--dsw-alias-bg-base) 62%,transparent),inset 0 0 0 6px var(--si-gold-soft);display:flex;flex-direction:column;gap:13px}
 .si-placard-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
 .si-placard-no{font-family:var(--si-mono);font-size:10px;letter-spacing:.16em;color:var(--si-gold);text-transform:uppercase}
@@ -768,13 +858,35 @@ window.__ModuleLoader__.load({
 .si-note-card h2{margin:0;font-family:var(--si-serif);font-size:14px;font-weight:600;letter-spacing:.06em}
 .si-note-list{margin:0;padding-left:17px;display:flex;flex-direction:column;gap:6px;font-family:var(--si-serif);font-size:12.5px;line-height:1.65}
 .si-museum-empty{border:1px dashed var(--si-line);border-radius:2px;padding:26px;text-align:center;font-family:var(--si-serif);color:var(--si-muted)}
-.si-mini-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:7px}
-.si-mini{display:flex;flex-direction:column;gap:2px;text-align:left;border:1px solid var(--si-line,var(--dsw-alias-border-l1));background:var(--dsw-alias-bg-base);color:inherit;font:inherit;padding:7px 9px;border-radius:2px;cursor:pointer}
-.si-mini:hover{border-color:var(--si-line-strong,var(--dsw-alias-border-l2))}
-.si-mini-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.si-mini-no{font-family:var(--si-mono);font-size:9.5px;letter-spacing:.12em;color:var(--si-gold)}
-.si-mini-title{font-family:var(--si-serif);font-size:12.5px;font-weight:600}
-.si-mini-meta{font-size:10.5px;color:var(--si-muted)}
+.si-dossier{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px;align-items:start}
+.si-rail{display:flex;flex-direction:column;gap:12px;min-width:0;position:sticky;top:6px;align-self:start}
+.si-panel{border:1px solid var(--si-line);background:var(--si-paper);padding:13px 15px;display:flex;flex-direction:column;gap:9px;min-width:0}
+.si-panel-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;border-bottom:1px solid var(--si-line);padding-bottom:6px}
+.si-panel-title{margin:0;font-family:var(--si-serif);font-size:13.5px;font-weight:600;letter-spacing:.05em}
+.si-panel-sub{font-size:10.5px;color:var(--si-muted);font-family:var(--si-serif);letter-spacing:.04em;white-space:nowrap}
+.si-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.si-tile{display:flex;flex-direction:column;gap:1px;border-top:1px solid var(--si-line);padding-top:4px;min-width:0}
+.si-tile-label{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--si-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.si-tile-value{font-family:var(--si-serif);font-size:18px;font-variant-numeric:tabular-nums;line-height:1.2}
+.si-tile.bad .si-tile-value{color:var(--dsw-alias-state-error-primary)}
+.si-step-when{margin-left:auto;font-size:9.5px;color:var(--si-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.si-step-err{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-family:var(--si-mono);font-size:10px;line-height:1.5;color:var(--si-muted);word-break:break-word}
+.si-step-out{font-family:var(--si-serif);font-size:10.5px;color:var(--si-gold);letter-spacing:.02em;line-height:1.45}
+.si-step-link{border:0;background:none;padding:0;font:inherit;font-family:var(--si-serif);font-size:12.5px;font-weight:600;color:inherit;cursor:pointer;text-align:left;letter-spacing:.02em}
+.si-step-link:hover{color:var(--si-gold)}
+.si-signatures{display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--si-line);padding-top:9px}
+.si-signature{display:flex;flex-direction:column;gap:1px;min-width:0}
+.si-signature-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.si-signature-name{font-family:var(--si-serif);font-size:12px;font-weight:600}
+.si-signature-advice{margin:0;font-size:10.5px;color:var(--si-muted);line-height:1.5}
+@media (max-width:860px){
+  .si-section,.si-tier{grid-template-columns:minmax(0,1fr);gap:8px}
+  .si-section-label,.si-tier-label{position:static;flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+  .si-dossier{grid-template-columns:minmax(0,1fr)}
+  .si-tier-lines{grid-template-columns:minmax(0,1fr)}
+  .si-ledger{columns:2}
+}
+@media (max-width:560px){.si-ledger{columns:1}}
 .si-daily{display:flex;flex-direction:column;gap:5px;margin-top:3px}
 .si-daybars{display:flex;align-items:flex-end;gap:2px;height:86px;padding:2px 0 0;border-bottom:1px solid var(--si-line)}
 .si-daybar{flex:1;min-width:2px;height:100%;display:flex;align-items:flex-end}
@@ -921,7 +1033,7 @@ window.__ModuleLoader__.load({
       { id: 'stalled', roman: 'IV' },
     ]
 
-    const EXHIBIT_LIMIT = 10
+    const EXHIBIT_LIMIT = 12
 
     function Plaque({ label, value, foot, tone }) {
       return h(
@@ -1089,7 +1201,55 @@ window.__ModuleLoader__.load({
           'span',
           { className: 'si-exhibit-foot' },
           h('span', { className: 'si-exhibit-session', title: exhibit.sessionTitle }, exhibit.sessionTitle || '—'),
-          h('span', null, t('museum.card.open') + ' →'),
+          h('span', { className: 'si-exhibit-open' }, t('museum.card.open') + ' →'),
+        ),
+      )
+    }
+
+    /**
+     * One proportional band. Width follows the count, so a rare category reads
+     * as a narrow niche instead of an empty column; the legend carries the words
+     * and the number, the band carries the proportion.
+     */
+    function PropBand({ rows, total, title, body, axis, onPick, t, locale }) {
+      const safe = total > 0 ? total : 1
+      return h(
+        'div',
+        { className: 'si-route' },
+        h('div', { className: 'si-band-cap' }, h('b', null, title), h('span', null, body)),
+        h(
+          'div',
+          { className: 'si-band', role: 'img', 'aria-label': `${title} ${body}` },
+          rows.map((row) => {
+            const share = row.count / safe
+            const label = `${row.name} · ${num(row.count, locale)} · ${pct(share)}`
+            return h(
+              'button',
+              {
+                type: 'button',
+                key: row.id,
+                className: 'si-band-seg',
+                style: { '--tone': row.tone, flex: `${Math.max(row.count, 0.001)} 1 0%` },
+                title: label,
+                'aria-label': label,
+                onClick: () => onPick?.(row.id),
+              },
+              share >= 0.055 ? [h('span', null, row.roman), h('i', null, num(row.count, locale))] : null,
+            )
+          }),
+        ),
+        axis ? h('div', { className: 'si-axis' }, axis) : null,
+        h(
+          'div',
+          { className: 'si-legend' },
+          rows.map((row) =>
+            h(
+              'button',
+              { type: 'button', key: row.id, className: 'si-legend-item', style: { '--tone': row.tone }, onClick: () => onPick?.(row.id), title: row.name },
+              h('span', { className: 'si-legend-name' }, h('em', null, row.roman), row.name),
+              h('span', { className: 'si-legend-value' }, num(row.count, locale), h('span', null, pct(total > 0 ? row.count / total : 0))),
+            ),
+          ),
         ),
       )
     }
@@ -1108,10 +1268,22 @@ window.__ModuleLoader__.load({
         }
         return buckets
       }, [museum, activeSpecies, onlyReflected])
+      const stored = museum.stats?.halls ?? {}
+      const filtered = Boolean(activeSpecies || onlyReflected)
       const total = Object.values(grouped).reduce((sum, rows) => sum + rows.length, 0)
+      const halls = HALLS.map((hall) => {
+        const rows = grouped[hall.id] ?? []
+        return { ...hall, rows, stored: stored[hall.id] ?? rows.length, name: t(`museum.hall.${hall.id}`), tone: `var(--si-hall-${hall.id})` }
+      })
+      const storedTotal = halls.reduce((sum, hall) => sum + hall.stored, 0)
+      const shownTotal = filtered ? total : halls.reduce((sum, hall) => sum + hall.rows.length, 0)
+      const jump = (id) => {
+        if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return
+        document.getElementById(`si-hall-${id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      }
       return h(
         'section',
-        { style: { display: 'flex', flexDirection: 'column', gap: 9 } },
+        { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
         h(
           'div',
           { className: 'si-card-head' },
@@ -1119,52 +1291,72 @@ window.__ModuleLoader__.load({
           h(
             'span',
             { className: 'si-col-count' },
-            activeSpecies || onlyReflected
-              ? format(t('museum.filter.result'), { n: num(total, locale) })
-              : format(t('museum.board.shown'), { shown: num((museum.exhibits ?? []).length, locale), total: num(museum.stats.exhibits, locale) }),
+            filtered ? format(t('museum.filter.result'), { n: num(total, locale) }) : '',
           ),
         ),
         h('p', { className: 'si-card-hint' }, t('museum.board.hint')),
         total === 0
-          ? h('div', { className: 'si-museum-empty' }, h('div', null, t('museum.empty')), h('div', { style: { fontSize: 11.5, marginTop: 4 } }, t('museum.empty.hint')))
-          : h(
+          ? h(
               'div',
-              { className: 'si-halls' },
-              HALLS.map((hall) => {
-                const rows = grouped[hall.id] ?? []
-                const limit = limits[hall.id] ?? EXHIBIT_LIMIT
-                const visible = rows.slice(0, limit)
-                const remaining = rows.length - visible.length
-                return h(
-                  'div',
-                  { className: 'si-hall', key: hall.id },
-                  h(
-                    'div',
-                    { className: 'si-hall-head' },
+              { className: 'si-museum-empty' },
+              h('div', null, filtered ? t('museum.filter.empty') : t('museum.empty')),
+              filtered ? null : h('div', { style: { fontSize: 11.5, marginTop: 4 } }, t('museum.empty.hint')),
+            )
+          : h(
+              React.Fragment,
+              null,
+              h(PropBand, {
+                rows: halls.map((hall) => ({ id: hall.id, roman: hall.roman, name: hall.name, count: filtered ? hall.rows.length : hall.stored, tone: hall.tone })),
+                total: filtered ? total : storedTotal,
+                title: t('museum.band.title'),
+                body: filtered ? format(t('museum.filter.result'), { n: num(total, locale) }) : format(t('museum.band.body'), { total: num(storedTotal, locale), shown: num(shownTotal, locale) }),
+                axis: t('museum.band.axis'),
+                onPick: jump,
+                t,
+                locale,
+              }),
+              h(
+                'div',
+                { className: 'si-wall' },
+                halls.map((hall) => {
+                  const limit = limits[hall.id] ?? EXHIBIT_LIMIT
+                  const visible = hall.rows.slice(0, limit)
+                  const remaining = hall.rows.length - visible.length
+                  const rare = hall.rows.length > 0 && hall.rows.length < EXHIBIT_LIMIT
+                  return h(
+                    'section',
+                    { className: `si-section${rare ? ' rare' : ''}`, key: hall.id, id: `si-hall-${hall.id}` },
                     h(
                       'div',
-                      { className: 'si-hall-name' },
-                      h('span', null, h('span', { className: 'si-hall-roman' }, hall.roman), h('span', { className: 'si-hall-title' }, t(`museum.hall.${hall.id}`))),
-                      h('span', { className: 'si-hall-count' }, num(rows.length, locale)),
+                      { className: 'si-section-label' },
+                      h('span', { className: 'si-section-roman' }, hall.roman),
+                      h('span', { className: 'si-section-name' }, hall.name),
+                      h('span', { className: 'si-section-count' }, num(hall.rows.length, locale), h('span', null, t('museum.hall.hung'))),
+                      h('p', { className: 'si-section-hint' }, t(`museum.hall.${hall.id}.hint`)),
+                      h('p', { className: 'si-section-hint' }, format(t('museum.hall.stored'), { n: num(hall.stored, locale) })),
+                      rare ? h('span', { className: 'si-section-flag' }, t('museum.hall.rare')) : null,
                     ),
-                    h('p', { className: 'si-hall-hint' }, t(`museum.hall.${hall.id}.hint`)),
-                  ),
-                  visible.length === 0
-                    ? h('div', { className: 'si-empty', style: { fontSize: 11 } }, t('museum.hall.empty'))
-                    : visible.map((exhibit) => h(ExhibitCard, { key: exhibit.id, exhibit, t, locale, onOpen })),
-                  remaining > 0
-                    ? h(
-                        'button',
-                        {
-                          type: 'button',
-                          className: 'si-btn',
-                          onClick: () => setLimits((current) => ({ ...current, [hall.id]: limit + EXHIBIT_LIMIT })),
-                        },
-                        format(t('museum.more'), { n: num(remaining, locale) }),
-                      )
-                    : null,
-                )
-              }),
+                    h(
+                      'div',
+                      { className: 'si-wall-grid' },
+                      visible.length === 0
+                        ? h('div', { className: 'si-empty', style: { fontSize: 11 } }, t('museum.hall.empty'))
+                        : visible.map((exhibit) => h(ExhibitCard, { key: exhibit.id, exhibit, t, locale, onOpen })),
+                      remaining > 0
+                        ? h(
+                            'button',
+                            {
+                              type: 'button',
+                              className: 'si-wall-more',
+                              onClick: () => setLimits((current) => ({ ...current, [hall.id]: limit + EXHIBIT_LIMIT })),
+                            },
+                            format(t('museum.more'), { n: num(remaining, locale) }),
+                          )
+                        : null,
+                    ),
+                  )
+                }),
+              ),
             ),
       )
     }
@@ -1365,11 +1557,34 @@ window.__ModuleLoader__.load({
       )
     }
 
+    /** A compact Session line: one row for the bulk of the board. */
+    function SessionLine({ row, tone, t, locale, onOpen }) {
+      const title = row.title || t('card.untitled')
+      const idle = (row.toolCalls ?? 0) === 0
+      const meta =
+        tone === 'redundant'
+          ? [format(t('card.calls'), { n: num(row.toolCalls, locale) }), format(t('card.redundant'), { n: num(row.redundantCalls, locale) })]
+          : [idle ? t('board.noCalls') : format(t('card.calls'), { n: num(row.toolCalls, locale) }), relativeTime(row.lastEventAt || row.createdAt, t)]
+      return h(
+        'button',
+        {
+          type: 'button',
+          className: `si-line${idle ? ' dim' : ''}`,
+          onClick: () => onOpen(row.id),
+          title: `${title} · ${meta.join(' · ')}`,
+        },
+        h('span', { className: 'si-line-title' }, title),
+        meta.map((value, index) =>
+          h('span', { className: `si-line-meta${tone === 'redundant' && index === 1 ? ' gold' : ''}`, key: index }, value),
+        ),
+      )
+    }
+
     function Board({ report, t, locale, onOpen, limits, setLimits }) {
       const columns = [
-        { id: 'pain', label: t('board.pain'), roman: 'I' },
-        { id: 'redundant', label: t('board.redundant'), roman: 'II' },
-        { id: 'ok', label: t('board.ok'), roman: 'III' },
+        { id: 'pain', roman: 'I', shape: 'cards', hint: 'board.pain.hint' },
+        { id: 'redundant', roman: 'II', shape: 'lines', hint: 'board.redundant.hint' },
+        { id: 'ok', roman: 'III', shape: 'ledger', hint: 'board.ok.hint' },
       ]
       const grouped = useMemo(() => {
         const buckets = { pain: [], redundant: [], ok: [] }
@@ -1378,51 +1593,85 @@ window.__ModuleLoader__.load({
           bucket.push(row)
         }
         for (const key of Object.keys(buckets)) {
-          buckets[key].sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || (b.lastEventAt ?? 0) - (a.lastEventAt ?? 0))
+          // A Session with no tool calls carries no signal: keep it last, dimmed.
+          buckets[key].sort(
+            (a, b) =>
+              Number((b.toolCalls ?? 0) > 0) - Number((a.toolCalls ?? 0) > 0) ||
+              (b.score ?? 0) - (a.score ?? 0) ||
+              (b.lastEventAt ?? 0) - (a.lastEventAt ?? 0),
+          )
         }
         return buckets
       }, [report])
+      const tiers = columns.map((column) => ({
+        ...column,
+        name: t(`board.${column.id}`),
+        tone: `var(--si-status-${column.id})`,
+        rows: grouped[column.id] ?? [],
+      }))
+      const total = tiers.reduce((sum, tier) => sum + tier.rows.length, 0)
+      const jump = (id) => {
+        if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return
+        document.getElementById(`si-tier-${id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      }
       return h(
         'section',
-        { style: { display: 'flex', flexDirection: 'column', gap: 9 } },
+        { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
         h(
           'div',
           { className: 'si-card-head' },
           h('h2', { className: 'si-card-title' }, t('board.title')),
-          h('span', { className: 'si-col-count' }, num(report.sessions?.length ?? 0, locale)),
+          h('span', { className: 'si-col-count' }, num(total, locale)),
         ),
         h('p', { className: 'si-card-hint' }, t('board.hint')),
+        h(PropBand, {
+          rows: tiers.map((tier) => ({ id: tier.id, roman: tier.roman, name: tier.name, count: tier.rows.length, tone: tier.tone })),
+          total,
+          title: t('board.band.title'),
+          body: format(t('board.band.body'), { n: num(total, locale) }),
+          axis: t('board.band.axis'),
+          onPick: jump,
+          t,
+          locale,
+        }),
         h(
           'div',
-          { className: 'si-board' },
-          columns.map((column) => {
-            const rows = grouped[column.id] ?? []
-            const limit = limits[column.id] ?? BOARD_LIMIT
-            const visible = rows.slice(0, limit)
-            const remaining = rows.length - visible.length
-            return h(
-              'div',
-              { className: 'si-col', key: column.id },
-              h(
-                'div',
-                { className: 'si-col-head' },
-                h('span', { className: 'si-col-name' }, h('span', { className: `si-dot ${column.id}` }), h('span', { className: 'si-col-roman' }, column.roman), column.label),
-                h('span', { className: 'si-col-count' }, num(rows.length, locale)),
-              ),
-              visible.length === 0
-                ? h('div', { className: 'si-empty' }, t('board.empty'))
-                : visible.map((row) => h(SessionCard, { key: row.id, row, t, locale, onOpen })),
+          null,
+          tiers.map((tier) => {
+            const limit = limits[tier.id] ?? TIER_LIMITS[tier.id] ?? 12
+            const visible = tier.rows.slice(0, limit)
+            const remaining = tier.rows.length - visible.length
+            const more =
               remaining > 0
                 ? h(
                     'button',
                     {
                       type: 'button',
-                      className: 'si-btn',
-                      onClick: () => setLimits((current) => ({ ...current, [column.id]: limit + BOARD_LIMIT })),
+                      className: 'si-wall-more',
+                      onClick: () => setLimits((current) => ({ ...current, [tier.id]: limit + (TIER_LIMITS[tier.id] ?? 12) })),
                     },
                     format(t('action.more'), { n: num(remaining, locale) }),
                   )
-                : null,
+                : null
+            const body =
+              tier.rows.length === 0
+                ? h('div', { className: 'si-empty' }, t('board.empty'))
+                : tier.shape === 'cards'
+                  ? h('div', { className: 'si-tier-cards' }, visible.map((row) => h(SessionCard, { key: row.id, row, t, locale, onOpen })), more)
+                  : tier.shape === 'lines'
+                    ? h('div', { className: 'si-tier-lines' }, visible.map((row) => h(SessionLine, { key: row.id, row, tone: tier.id, t, locale, onOpen })), more)
+                    : h('div', { className: 'si-ledger' }, visible.map((row) => h(SessionLine, { key: row.id, row, tone: tier.id, t, locale, onOpen })), more)
+            return h(
+              'section',
+              { className: 'si-tier', key: tier.id, id: `si-tier-${tier.id}` },
+              h(
+                'div',
+                { className: 'si-tier-label' },
+                h('span', { className: 'si-tier-name' }, h('span', { className: 'si-tier-roman' }, tier.roman), tier.name),
+                h('span', { className: 'si-tier-count' }, num(tier.rows.length, locale), h('span', null, t('board.count'))),
+                h('p', { className: 'si-tier-hint' }, t(tier.hint)),
+              ),
+              body,
             )
           }),
         ),
@@ -1430,85 +1679,93 @@ window.__ModuleLoader__.load({
     }
 
     // ----------------------------------------------------------------- detail
-    function MetricsCard({ session, t, locale }) {
-      const rows = [
-        ['metric.turns', session.turns, false],
-        ['metric.steps', session.steps, false],
+    /** The numbers, demoted to a rail: the trail tells the story, this confirms it. */
+    function MetricTiles({ session, t, locale }) {
+      const tiles = [
         ['metric.requests', session.userMessages, false],
-        ['metric.injected', session.injectedMessages, false],
+        ['metric.turns', session.turns, false],
         ['metric.calls', session.toolCalls, false],
         ['metric.fails', session.toolFailures, true],
-        ['metric.redundant', session.redundantCalls, true],
-        ['metric.rereads', session.rereads, false],
+        ['metric.redundant', session.redundantCalls, false],
         ['metric.denied', session.approvalsDenied, true],
       ]
       return h(
         'section',
-        { className: 'si-card' },
-        h('h2', { className: 'si-card-title' }, t('detail.metrics')),
+        { className: 'si-panel' },
         h(
           'div',
-          { className: 'si-stat-grid' },
-          rows.map(([key, value, alert]) =>
+          { className: 'si-panel-head' },
+          h('h2', { className: 'si-panel-title' }, t('detail.rail')),
+          h('span', { className: 'si-panel-sub' }, t('detail.rail.hint')),
+        ),
+        h(
+          'div',
+          { className: 'si-tiles' },
+          tiles.map(([key, value, alert]) =>
             h(
               'div',
-              { className: `si-stat${alert && value > 0 ? ' bad' : ''}`, key },
-              h('span', { className: 'si-stat-label' }, t(key)),
-              h('strong', { className: 'si-stat-value' }, num(value, locale)),
+              { className: `si-tile${alert && value > 0 ? ' bad' : ''}`, key },
+              h('span', { className: 'si-tile-label' }, t(key)),
+              h('strong', { className: 'si-tile-value' }, num(value, locale)),
             ),
           ),
         ),
       )
     }
 
-    function PainsEvidence({ session, t, locale }) {
-      const pains = session.pains ?? []
+    function ToolBars({ session, t, locale }) {
+      const tools = session.tools ?? []
+      const max = tools.reduce((value, tool) => Math.max(value, tool.count ?? 0), 0) || 1
       return h(
         'section',
-        { className: 'si-card' },
+        { className: 'si-panel' },
         h(
           'div',
-          { className: 'si-card-head' },
-          h('h2', { className: 'si-card-title' }, t('detail.pains')),
-          h('span', { className: 'si-col-count' }, num(pains.length, locale)),
+          { className: 'si-panel-head' },
+          h('h2', { className: 'si-panel-title' }, t('detail.tools')),
+          h('span', { className: 'si-panel-sub' }, `${num(tools.length, locale)} ${t('detail.kinds')}`),
         ),
-        pains.length === 0
-          ? h('div', { className: 'si-empty' }, t('detail.noPains'))
+        tools.length === 0
+          ? h('div', { className: 'si-empty' }, t('detail.noTools'))
           : h(
-              'ul',
-              { className: 'si-list' },
-              pains.map((pain) =>
+              'div',
+              { className: 'si-rows' },
+              tools.slice(0, 6).map((tool) =>
                 h(
-                  'li',
-                  { className: `si-item ${pain.kind === 'tool' ? 'pain' : 'warn'}`, key: pain.id },
+                  'div',
+                  { className: 'si-row', key: tool.name },
                   h(
                     'div',
-                    { className: 'si-item-head' },
-                    h('span', { className: 'si-item-name' }, pain.label),
-                    h('span', { className: 'si-row-meta' }, `${num(pain.count, locale)}×`),
+                    { className: 'si-row-top' },
+                    h('span', { className: 'si-row-name' }, tool.name),
+                    h('span', { className: 'si-row-meta' }, `${num(tool.count, locale)} · ${pct(tool.share)}`),
                   ),
-                  pain.advice ? h('span', { className: 'si-item-body' }, pain.advice) : null,
-                  pain.examples?.[0] ? h('span', { className: 'si-quote' }, pain.examples[0]) : null,
+                  h(Bar, { ratio: (tool.count ?? 0) / max }),
                 ),
               ),
             ),
       )
     }
 
-    function DuplicatesCard({ session, t, locale }) {
+    function DuplicateLines({ session, t, locale }) {
       const duplicates = session.duplicates ?? []
       return h(
         'section',
-        { className: 'si-card' },
-        h('h2', { className: 'si-card-title' }, t('detail.duplicates')),
+        { className: 'si-panel' },
+        h(
+          'div',
+          { className: 'si-panel-head' },
+          h('h2', { className: 'si-panel-title' }, t('detail.duplicates')),
+          h('span', { className: 'si-panel-sub' }, num(duplicates.length, locale)),
+        ),
         duplicates.length === 0
           ? h('div', { className: 'si-empty' }, t('detail.noDuplicates'))
           : h(
-              'ul',
+              'div',
               { className: 'si-list' },
-              duplicates.map((duplicate, index) =>
+              duplicates.slice(0, 4).map((duplicate, index) =>
                 h(
-                  'li',
+                  'div',
                   { className: 'si-item warn', key: `${duplicate.tool}-${index}` },
                   h(
                     'div',
@@ -1523,32 +1780,57 @@ window.__ModuleLoader__.load({
       )
     }
 
-    function ToolsCard({ session, t, locale }) {
-      const tools = session.tools ?? []
-      const max = tools.reduce((value, tool) => Math.max(value, tool.count ?? 0), 0) || 1
+    /** One failure on the Session's conservation record. */
+    function FailureStep({ item, t, locale, onOpen }) {
+      const reflected = item.reflection?.kind === 'self-correct' || item.reflection?.kind === 'replan'
+      const fixed = Boolean(item.eventuallyFixed) && item.stepsToFix > 0
+      const outcome = [fixed ? format(t('detail.step.fixed'), { n: item.stepsToFix }) : t(`museum.outcome.${item.outcome}`)]
+      if (fixed && item.repeated) outcome.push(t('museum.card.repeated'))
+      if (reflected) outcome.push(t(`museum.reflect.${item.reflection.kind}`))
       return h(
-        'section',
-        { className: 'si-card' },
-        h('h2', { className: 'si-card-title' }, t('detail.tools')),
-        tools.length === 0
-          ? h('div', { className: 'si-empty' }, t('detail.noTools'))
-          : h(
+        'li',
+        { className: 'si-step fail' },
+        h('span', { className: 'si-node', 'aria-hidden': true }, '×'),
+        h(
+          'span',
+          { className: 'si-step-body' },
+          h(
+            'span',
+            { className: 'si-step-head' },
+            h('button', { type: 'button', className: 'si-step-link', onClick: () => onOpen?.(item.id) }, item.speciesLabel ?? item.species),
+            h('span', { className: 'si-step-tag' }, item.tool || t('kind.turn')),
+            h('span', { className: 'si-step-when' }, dateTime(item.time, locale)),
+          ),
+          item.error ? h('span', { className: 'si-step-err' }, item.error) : null,
+          h('span', { className: 'si-step-out' }, outcome.join(' · ')),
+        ),
+      )
+    }
+
+    /** This Session's failure species, with the standing advice for each. */
+    function SignatureList({ pains, t, locale }) {
+      return h(
+        'div',
+        { className: 'si-signatures' },
+        h(
+          'div',
+          { className: 'si-panel-head', style: { borderBottom: 0, paddingBottom: 0 } },
+          h('h2', { className: 'si-panel-title' }, t('detail.signatures')),
+          h('span', { className: 'si-panel-sub' }, num(pains.length, locale)),
+        ),
+        pains.slice(0, 4).map((pain) =>
+          h(
+            'div',
+            { className: 'si-signature', key: pain.id },
+            h(
               'div',
-              { className: 'si-rows' },
-              tools.slice(0, 10).map((tool) =>
-                h(
-                  'div',
-                  { className: 'si-row', key: tool.name },
-                  h(
-                    'div',
-                    { className: 'si-row-top' },
-                    h('span', { className: 'si-row-name' }, tool.name),
-                    h('span', { className: 'si-row-meta' }, `${num(tool.count, locale)} · ${pct(tool.share)}`),
-                  ),
-                  h(Bar, { ratio: (tool.count ?? 0) / max }),
-                ),
-              ),
+              { className: 'si-signature-head' },
+              h('span', { className: 'si-signature-name' }, pain.label),
+              h('span', { className: 'si-row-meta' }, `${num(pain.count, locale)}×`),
             ),
+            pain.advice ? h('p', { className: 'si-signature-advice' }, pain.advice) : null,
+          ),
+        ),
       )
     }
 
@@ -1736,52 +2018,6 @@ window.__ModuleLoader__.load({
       )
     }
 
-    function SessionExhibits({ session, t, locale, onOpen }) {
-      const exhibits = session.exhibits ?? []
-      return h(
-        'section',
-        { className: 'si-card' },
-        h(
-          'div',
-          { className: 'si-card-head' },
-          h('h2', { className: 'si-card-title', style: { fontFamily: 'var(--si-serif)', letterSpacing: '.05em' } }, t('detail.exhibits')),
-          h('span', { className: 'si-col-count' }, num(exhibits.length, locale)),
-        ),
-        h('p', { className: 'si-card-hint' }, t('detail.exhibits.hint')),
-        exhibits.length === 0
-          ? h('div', { className: 'si-empty' }, t('detail.exhibits.empty'))
-          : h(
-              'div',
-              { className: 'si-mini-list' },
-              exhibits.map((exhibit) =>
-                h(
-                  'button',
-                  {
-                    type: 'button',
-                    key: exhibit.id,
-                    className: 'si-mini',
-                    onClick: () => onOpen?.(exhibit.id),
-                  },
-                  h(
-                    'span',
-                    { className: 'si-mini-head' },
-                    h('span', { className: 'si-mini-no' }, format(t('museum.no'), { no: String(exhibit.no).padStart(3, '0') })),
-                    h(
-                      'span',
-                      {
-                        className: `si-badge${exhibit.outcome === 'fixed' ? ' ok' : exhibit.outcome === 'repeated' ? ' bad' : ''}`,
-                      },
-                      t(`museum.outcome.${exhibit.outcome}`),
-                    ),
-                  ),
-                  h('span', { className: 'si-mini-title' }, exhibit.speciesLabel ?? exhibit.species),
-                  h('span', { className: 'si-mini-meta' }, `${exhibit.tool || t('kind.turn')} · ${dateTime(exhibit.time, locale)}`),
-                ),
-              ),
-            ),
-      )
-    }
-
     function Detail({ sessionId, model, t, locale, onBack, onGone, onOpenExhibit }) {
       const [state, setState] = useState({ status: 'loading', session: null, audit: null, error: null })
       useEffect(() => {
@@ -1817,6 +2053,13 @@ window.__ModuleLoader__.load({
 
       const session = state.session
       const title = session?.title || t('card.untitled')
+      // Chronological, not aggregated: the record answers "what happened here".
+      const trail = useMemo(
+        () => (session?.exhibits ?? []).slice().sort((a, b) => (a.time ?? 0) - (b.time ?? 0)),
+        [session],
+      )
+      const pains = session?.pains ?? []
+      const requests = session?.requests ?? []
       const statusTag = session
         ? h(
             'span',
@@ -1854,9 +2097,7 @@ window.__ModuleLoader__.load({
                 session.redundantCalls > 0
                   ? h('span', { className: 'si-badge gold' }, `${t('metric.redundant')} ${num(session.redundantCalls, locale)}`)
                   : null,
-                (session.exhibits?.length ?? 0) > 0
-                  ? h('span', { className: 'si-badge' }, `${t('detail.exhibits')} ${num(session.exhibits.length, locale)}`)
-                  : null,
+                trail.length > 0 ? h('span', { className: 'si-badge' }, `${t('detail.trail')} ${num(trail.length, locale)}`) : null,
               ),
             )
           : h(
@@ -1869,31 +2110,52 @@ window.__ModuleLoader__.load({
         session
           ? h(
               'div',
-              { className: 'si-detail-grid' },
-              h(MetricsCard, { session, t, locale }),
-              h(PainsEvidence, { session, t, locale }),
-              h(DuplicatesCard, { session, t, locale }),
-              h(ToolsCard, { session, t, locale }),
-            )
-          : null,
-        session ? h(SessionExhibits, { session, t, locale, onOpen: onOpenExhibit }) : null,
-        session
-          ? h(AuditPanel, { key: session.id, sessionId: session.id, t, locale, model, initial: state.audit })
-          : null,
-        session && (session.requests?.length ?? 0) > 0
-          ? h(
-              'section',
-              { className: 'si-card' },
-              h('h2', { className: 'si-card-title' }, t('detail.requests')),
+              { className: 'si-dossier' },
               h(
-                'ul',
-                { className: 'si-list' },
-                session.requests.map((text, index) =>
-                  h('li', { className: 'si-item', key: `req-${index}` }, h('span', { className: 'si-item-body' }, text)),
+                'section',
+                { className: 'si-panel' },
+                h(
+                  'div',
+                  { className: 'si-panel-head' },
+                  h('h2', { className: 'si-panel-title' }, t('detail.trail')),
+                  h('span', { className: 'si-panel-sub' }, trail.length > 0 ? format(t('detail.trail.count'), { n: num(trail.length, locale) }) : t('detail.trail.hint')),
                 ),
+                trail.length === 0
+                  ? h('div', { className: 'si-empty' }, t('detail.trail.empty'))
+                  : h(
+                      'ol',
+                      { className: 'si-trail' },
+                      trail.map((item) => h(FailureStep, { key: item.id, item, t, locale, onOpen: onOpenExhibit })),
+                    ),
+                pains.length > 0 ? h(SignatureList, { pains, t, locale }) : null,
+              ),
+              h(
+                'div',
+                { className: 'si-rail' },
+                h(MetricTiles, { session, t, locale }),
+                h(ToolBars, { session, t, locale }),
+                h(DuplicateLines, { session, t, locale }),
               ),
             )
           : null,
+        session && requests.length > 0
+          ? h(
+              'section',
+              { className: 'si-card' },
+              h(
+                'div',
+                { className: 'si-card-head' },
+                h('h2', { className: 'si-card-title' }, t('detail.requests')),
+                h('span', { className: 'si-col-count' }, num(requests.length, locale)),
+              ),
+              h(
+                'ul',
+                { className: 'si-list' },
+                requests.map((text, index) => h('li', { className: 'si-item', key: `req-${index}` }, h('span', { className: 'si-item-body' }, text))),
+              ),
+            )
+          : null,
+        session ? h(AuditPanel, { key: session.id, sessionId: session.id, t, locale, model, initial: state.audit }) : null,
       )
     }
 
