@@ -1,12 +1,22 @@
 {
-  "name": "dsh-session-insights",
-  "version": "0.2.0",
-  "private": true,
+  "name": "dsh-error-museum",
+  "version": "0.3.0",
   "type": "module",
-  "description": "错误博物馆：把最近 N 天的 DSH 失败做成展品，按模型的处置分馆陈列，并保留每次失败前后的真实轨迹（重试 / 自省 / 交还 / 搁置）。",
+  "description": "An error museum for DeepSeek Harness: turns the last N days of confirmed failures into exhibits, grouped by how the model handled each one, and keeps the real trajectory and verbatim error around it.",
   "icon": "icon.svg",
-  "author": "",
+  "author": "Calvin-Xia (https://github.com/Calvin-Xia)",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Calvin-Xia/dsh-error-museum.git"
+  },
+  "homepage": "https://github.com/Calvin-Xia/dsh-error-museum#readme",
+  "bugs": {
+    "url": "https://github.com/Calvin-Xia/dsh-error-museum/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
@@ -38,6 +48,7 @@
   "keywords": [
     "deepseek-harness",
     "dsh",
+    "dsh-plugin",
     "cordis",
     "plugin",
     "session",

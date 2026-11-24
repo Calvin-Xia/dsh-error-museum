@@ -16,15 +16,14 @@
  */
 
 import { promises as fs } from 'node:fs'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
+
+import { ensureStateDir, stateDir } from './state-dir.js'
 
 const MAX_ENTRIES = 600
 
 export function createDigestStore() {
-  const home = process.env.DSH_HOME || join(homedir(), '.dsh')
-  const dir = join(home, 'dsh-session-insights')
-  const file = join(dir, 'digests.json')
+  const file = join(stateDir(), 'digests.json')
 
   let data = null
   let dirty = false
@@ -32,6 +31,7 @@ export function createDigestStore() {
 
   async function load() {
     if (data) return data
+    await ensureStateDir()
     try {
       const parsed = JSON.parse(await fs.readFile(file, 'utf8'))
       data =
@@ -48,7 +48,7 @@ export function createDigestStore() {
     const current = await load()
     if (!dirty) return
     dirty = false
-    await fs.mkdir(dir, { recursive: true })
+    await ensureStateDir()
     const temporary = `${file}.${process.pid}.${Date.now()}.tmp`
     await fs.writeFile(temporary, JSON.stringify({ version: 1, entries: current.entries }), 'utf8')
     await fs.rename(temporary, file)

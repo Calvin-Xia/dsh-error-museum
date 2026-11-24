@@ -10,9 +10,9 @@ import { failure, isFailure } from './services.js'
 import { buildSessionDigest } from '../digest.js'
 import { auditSession, prepareModel, readSelection } from './model.js'
 
-export const API_BASE = '/dsh-session-insights/api'
+export const API_BASE = '/dsh-error-museum/api'
 export const PANEL_HEADER = 'x-dsh-panel'
-export const PANEL_TOKEN = 'session-insights'
+export const PANEL_TOKEN = 'error-museum'
 const MAX_BODY_BYTES = 16 * 1024
 const AUDIT_TIMEOUT_MS = 180_000
 

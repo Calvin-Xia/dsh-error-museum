@@ -1,0 +1,47 @@
+# Publishing uses npm trusted publishing (OIDC): no npm token is stored in this
+# repository, and every version a tag publishes carries a provenance statement
+# that points back to its commit. See RELEASING.md for the tag flow and the
+# one-time bootstrap of a new package name.
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+
+      # Trusted publishing needs npm >= 11.5.1, and the runner's bundled npm can lag.
+      - name: Install a publish-capable npm
+        run: npm install --global npm@latest
+
+      - name: Fail unless the tag and package.json agree
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "tag $GITHUB_REF_NAME does not match package.json version $version" >&2
+            exit 1
+          fi
+
+      - name: Publish
+        run: npm publish --access public --provenance

@@ -1,5 +1,5 @@
 /**
- * Host half of dsh-session-insights (错误博物馆 / The Error Museum).
+ * Host half of dsh-error-museum (错误博物馆 / The Error Museum).
  *
  * The bundle exists to answer three questions about the last N days of this
  * profile's Sessions: which errors keep coming back, what happened right before
@@ -50,6 +50,6 @@ export function apply(ctx, config) {
         corpus.clear()
       }
     },
-    'dsh-session-insights: http api',
+    'dsh-error-museum: http api',
   )
 }

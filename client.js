@@ -1,17 +1,17 @@
-// Browser half of dsh-session-insights.
+// Browser half of dsh-error-museum.
 //
 // Loaded by the Web app's module loader; the Host half serves the JSON this page
 // reads. One left-rail entry → one page: a Session board plus one Session's
 // evidence, and an on-demand audit by the profile's configured default model.
 window.__ModuleLoader__.load({
-  id: 'dsh-session-insights',
+  id: 'dsh-error-museum',
   factory(require) {
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useMemo, useRef, useCallback, useSyncExternalStore } = React
 
-    const NS = 'dsh-session-insights'
-    const API = '/dsh-session-insights/api'
+    const NS = 'dsh-error-museum'
+    const API = '/dsh-error-museum/api'
     const RANGES = [7, 30, 90]
     // How many rows each shape shows before offering "show more": cards cost
     // height, ledger lines cost almost nothing, so the calm tier can show plenty.
@@ -509,11 +509,14 @@ window.__ModuleLoader__.load({
     // range, the open Session, how far each board column is expanded — is a
     // view preference, so it lives in browser storage and is restored on the
     // next mount instead of jumping back to the board.
-    const UI_KEY = 'dsh-session-insights.ui.v1'
+    const UI_KEY = 'dsh-error-museum.ui.v1'
+    // The panel was renamed with the package: the old key is read once so a
+    // reader keeps their place, and the next write stores under the new one.
+    const LEGACY_UI_KEY = 'dsh-session-insights.ui.v1'
 
     function readUiState() {
       try {
-        const raw = window.localStorage?.getItem(UI_KEY)
+        const raw = window.localStorage?.getItem(UI_KEY) ?? window.localStorage?.getItem(LEGACY_UI_KEY)
         if (!raw) return {}
         const parsed = JSON.parse(raw)
         return parsed && typeof parsed === 'object' ? parsed : {}
@@ -1924,7 +1927,7 @@ window.__ModuleLoader__.load({
         try {
           const response = await fetch(`${API}/analyze`, {
             method: 'POST',
-            headers: { 'content-type': 'application/json', 'x-dsh-panel': 'session-insights' },
+            headers: { 'content-type': 'application/json', 'x-dsh-panel': 'error-museum' },
             body: JSON.stringify({ sessionId, locale }),
             signal: controller.signal,
           })
@@ -2455,16 +2458,16 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale'],
       apply(ctx) {
         appCtx = ctx
-        ctx.effect(() => ctx.locale.register(NS, { zh: DICT.zh, en: DICT.en }), 'dsh-session-insights: dictionaries')
+        ctx.effect(() => ctx.locale.register(NS, { zh: DICT.zh, en: DICT.en }), 'dsh-error-museum: dictionaries')
         translate = ctx.locale.bind(NS)
         const label = () => translate('panel.title')
         ctx.slots.inject('sidebar.panellist', () =>
           ctx.slots.register(
-            { name: 'sidebar.panellist', id: 'session-insights', order: 40, label, locale: NS },
+            { name: 'sidebar.panellist', id: 'error-museum', order: 40, label, locale: NS },
             PanelIcon,
           ),
         )
-        ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'session-insights', locale: NS }, Main))
+        ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'error-museum', locale: NS }, Main))
       },
     }
   },

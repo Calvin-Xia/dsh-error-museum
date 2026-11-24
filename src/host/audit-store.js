@@ -13,22 +13,22 @@
  */
 
 import { promises as fs } from 'node:fs'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
+
+import { ensureStateDir, stateDir } from './state-dir.js'
 
 const MAX_ENTRIES = 300
 const MAX_TEXT = 80_000
 
 export function createAuditStore() {
-  const home = process.env.DSH_HOME || join(homedir(), '.dsh')
-  const dir = join(home, 'dsh-session-insights')
-  const file = join(dir, 'audits.json')
+  const file = join(stateDir(), 'audits.json')
 
   let loaded = null
   let queue = Promise.resolve()
 
   async function load() {
     if (loaded) return loaded
+    await ensureStateDir()
     try {
       const parsed = JSON.parse(await fs.readFile(file, 'utf8'))
       loaded =
@@ -43,7 +43,7 @@ export function createAuditStore() {
 
   async function flush() {
     const data = await load()
-    await fs.mkdir(dir, { recursive: true })
+    await ensureStateDir()
     const temporary = `${file}.${process.pid}.${Date.now()}.tmp`
     await fs.writeFile(temporary, JSON.stringify({ version: 1, entries: data.entries }), 'utf8')
     await fs.rename(temporary, file)
