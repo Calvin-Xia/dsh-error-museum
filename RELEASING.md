@@ -18,6 +18,10 @@ git push origin main --tags
 `npm publish --access public --provenance`。`workflow_dispatch` 用来重跑一次失败的发布，
 不会改版本号。
 
+发布成功不等于立刻可装：npm 会先把新版本置为 **Validating**（自动审查未完成），此时
+`npm view` 仍看不到它，包页面上的版本状态是黄色的；审查结束后版本才进入 `dist-tags`。
+provenance 在发布那一刻就签好了，不用为了审查重发。
+
 ## 首次发布（一次性）
 
 npm 只允许给**已存在**的包配置 trusted publisher，所以新包的第一个版本必须带凭据发布一次：
