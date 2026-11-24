@@ -1,6 +1,6 @@
 {
   "name": "dsh-error-museum",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "description": "An error museum for DeepSeek Harness: turns the last N days of confirmed failures into exhibits, grouped by how the model handled each one, and keeps the real trajectory and verbatim error around it.",
   "icon": "icon.svg",

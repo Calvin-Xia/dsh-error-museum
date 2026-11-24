@@ -30,6 +30,13 @@ npm trust github dsh-error-museum --file release.yml --repo Calvin-Xia/dsh-error
 
 之后打标签就会自动发布；`npm logout` 或到 npmjs.com 吊销 token 后，本机不再留可用的凭据。
 
+注意：npm 对全新包的首版会走 staged publish——先出现一个 `0.0.0-stage` 占位版本，真实版本要等你完成 2FA 批准才落库。**批准完成前不要推 tag**，否则 Actions 会撞上
+`409 Cannot publish over previously staged version`。占位版本可以在 72 小时内清掉：
+
+```powershell
+npm unpublish dsh-error-museum@0.0.0-stage --force
+```
+
 ## 上架市场
 
 市场（[dshmarket](https://dshmarket.com) 与 [awesome-dsh-plugin](https://awesome-dsh-plugin.com)）
